@@ -7,7 +7,9 @@ import tarfile
 import socket
 from ConfigParser import SafeConfigParser
 
-from tyr import resources
+from tyr_client import resources
+
+parser = SafeConfigParser()
 
 class controller(object):
 
@@ -123,8 +125,6 @@ class controller(object):
 
 
 class client(object):
-
-    parser = SafeConfigParser()
 
     def __init__(self, conf):
         self.conf = conf

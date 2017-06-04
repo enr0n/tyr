@@ -49,6 +49,7 @@ class controller(object):
             exit(-3)
 
         # Compress the test dir_pathector
+        dirname = os.path.basename(dirname)
         tar_path = self.compress(dir_path, dirname)
         tar_dest = os.path.join(self.path_srvr, dirname + resources.strings.TAR_EXT)
         err = ""

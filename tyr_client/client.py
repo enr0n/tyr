@@ -43,7 +43,9 @@ class controller(object):
         Send the test directory to the server
 
         """
-        dir_path = os.path.join(self.localpath, dirname)
+        #dir_path = os.path.join(self.localpath, dirname)
+        dir_path = self.localpath
+        print dir_path
         if not os.path.isdir(dir_path):
             print resources.strings.ERR_DIR_NOT_FOUND
             exit(-3)
@@ -142,5 +144,5 @@ class client(object):
         parser.read(testconf)
         dirname = parser.get(resources.strings.CONF_FILES, resources.strings.CONF_DIR)
         client.send(dirname)
-        client.sendTestConf(testconf)
+        #client.sendTestConf(testconf)
         client.waitForTest(testconf)

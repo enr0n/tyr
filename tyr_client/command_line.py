@@ -21,6 +21,6 @@ def main():
         print "ERROR"
         sys.exit(-1)
     else:
-        tc = client.client(resources.strings.FS_TYRRC)
-        controller = tc.getController()
-        tc.initTest(controller, testconf)
+        tc = client.client()
+        tc.initController()
+        tc.initTest()

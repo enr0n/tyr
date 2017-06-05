@@ -5,6 +5,7 @@ import random
 import subprocess
 import tarfile
 import socket
+import string
 from ConfigParser import SafeConfigParser
 
 from tyr_client import resources
@@ -17,16 +18,22 @@ class controller(object):
     localpath = os.getcwd()
     client = paramiko.SSHClient()
 
+    def __gen_id(self):
+        return ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(6))
+    
     def __init__(self, addr_srvr, port_srvr, user_srvr, path_srvr):
         self.addr_srvr = addr_srvr
         self.user_srvr = user_srvr
         self.path_srvr = path_srvr
         self.port_srvr = int(port_srvr)
 
+        self.test_id = self.__gen_id()
+
         # Initiate ssh client
         self.client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
         hosts = os.path.join(os.getenv(resources.strings.FS_HOME), resources.strings.FS_KNOWN_HOSTS)
         self.client.load_host_keys(hosts)
+
 
     def compress(self, path, tarname):
         """
@@ -38,7 +45,7 @@ class controller(object):
         tar.close()
         return os.path.join(self.localpath, tarname + resources.strings.TAR_EXT)
 
-    def send(self, dirname):
+    def send(self):
         """
         Send the test directory to the server
 
@@ -51,9 +58,8 @@ class controller(object):
             exit(-3)
 
         # Compress the test dir_pathector
-        dirname = os.path.basename(dirname)
-        tar_path = self.compress(dir_path, dirname)
-        tar_dest = os.path.join(self.path_srvr, dirname + resources.strings.TAR_EXT)
+        tar_path = self.compress(dir_path, os.path.basename(self.localpath))
+        tar_dest = os.path.join(self.path_srvr, self.test_id + resources.strings.TAR_EXT)
         err = ""
 
         # Handle sftp
@@ -64,10 +70,11 @@ class controller(object):
             sftp.put(tar_path, tar_dest)
 
             # Decompress the folder on srvr
+            """
             cmd = resources.strings.TAR_CMD + tar_dest + " -C " + self.path_srvr
             stdin, stdout, stderr = self.client.exec_command(cmd)
             err = stderr.read()
-
+            """
         except IOError:
             print resources.strings.ERR_SFTP
             os.remove(tar_path)
@@ -105,15 +112,15 @@ class controller(object):
         sftp.close()
         self.client.close()
 
-    def waitForTest(self, testconf):
+    def waitForTest(self):
         # Open socket with the server
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
         # Notify server of test init
-        print "Requesting queue for test: ", testconf
+        print "Requesting queue for test: ", self.test_id
         try:
             sock.connect((self.addr_srvr, self.port_srvr))
-            sock.sendall(os.path.basename(testconf))
+            sock.sendall(self.test_id)
             # Wait for the test output
             while True:
                 print sock.recv(256)
@@ -129,20 +136,17 @@ class controller(object):
 
 class client(object):
 
-    def __init__(self, conf):
-        self.conf = conf
+    def __init__(self):
+        self.conf = resources.strings.FS_TYRRC
 
-    def getController(self):
+    def initController(self):
         parser.read(self.conf)
         address = parser.get(resources.strings.CONF_LOKI, resources.strings.CONF_ADDR)
         port = parser.get(resources.strings.CONF_LOKI, resources.strings.CONF_PORT)
         username = parser.get(resources.strings.CONF_LOKI, resources.strings.CONF_USER)
         remotepath = parser.get(resources.strings.CONF_LOKI, resources.strings.CONF_RPATH)
-        return controller(address, port, username, remotepath)
+        self.controller = controller(address, port, username, remotepath)
 
-    def initTest(self, client, testconf):
-        parser.read(testconf)
-        dirname = parser.get(resources.strings.CONF_FILES, resources.strings.CONF_DIR)
-        client.send(dirname)
-        #client.sendTestConf(testconf)
-        client.waitForTest(testconf)
+    def initTest(self):
+        self.controller.send()
+        self.controller.waitForTest()

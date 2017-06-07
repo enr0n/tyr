@@ -6,11 +6,15 @@ import subprocess
 import tarfile
 import socket
 import string
+from termcolor import colored
 from ConfigParser import SafeConfigParser
 
 from tyr_client import resources
 
 parser = SafeConfigParser()
+
+CLR_ERR='red'
+CLR_OK='green'
 
 class controller(object):
 
@@ -20,7 +24,7 @@ class controller(object):
 
     def __gen_id(self):
         return ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(6))
-    
+
     def __init__(self, addr_srvr, port_srvr, user_srvr, path_srvr):
         self.addr_srvr = addr_srvr
         self.user_srvr = user_srvr
@@ -52,9 +56,8 @@ class controller(object):
         """
         #dir_path = os.path.join(self.localpath, dirname)
         dir_path = self.localpath
-        print dir_path
         if not os.path.isdir(dir_path):
-            print resources.strings.ERR_DIR_NOT_FOUND
+            print "\n *" + colored(resources.strings.ERR_DIR_NOT_FOUND, CLR_ERR)
             exit(-3)
 
         # Compress the test dir_pathector
@@ -64,19 +67,13 @@ class controller(object):
 
         # Handle sftp
         try:
-            print resources.strings.TEST_SEND
+            print "\n *" + colored(resources.strings.TEST_SEND, CLR_OK)
             self.client.connect(self.addr_srvr, username=self.user_srvr)
             sftp = self.client.open_sftp()
             sftp.put(tar_path, tar_dest)
 
-            # Decompress the folder on srvr
-            """
-            cmd = resources.strings.TAR_CMD + tar_dest + " -C " + self.path_srvr
-            stdin, stdout, stderr = self.client.exec_command(cmd)
-            err = stderr.read()
-            """
         except IOError:
-            print resources.strings.ERR_SFTP
+            print colored(resources.strings.ERR_SFTP, CLR_ERR)
             os.remove(tar_path)
             self.client.close()
             exit(-3)
@@ -99,7 +96,7 @@ class controller(object):
 
         # Send the testconf
         try:
-            print "Sending testconf."
+            print colored("Sending testconf.", CLR_OK)
             self.client.connect(self.addr_srvr, username=self.user_srvr)
             sftp = self.client.open_sftp()
             sftp.put(testconf, testconf_dest)
@@ -117,11 +114,15 @@ class controller(object):
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
         # Notify server of test init
-        print "Requesting queue for test: ", self.test_id
+        print
+        print " *" + colored("Requesting queue for test: "+ self.test_id, CLR_OK)
         try:
             sock.connect((self.addr_srvr, self.port_srvr))
             sock.sendall(self.test_id)
             # Wait for the test output
+
+            print "\n  Output"
+            print "------------------"
             while True:
                 print sock.recv(256)
                 break

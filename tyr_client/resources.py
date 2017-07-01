@@ -1,4 +1,11 @@
 import os
+from termcolor import colored
+
+def print_ok(string):
+    print '*' + colored(string, 'green')
+
+def print_err(string):
+    print '*' + colored(string, 'red')
 
 class strings(object):
     """

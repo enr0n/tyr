@@ -10,5 +10,5 @@ def main():
         sys.exit(-1)
     else:
         tc = client.client()
-        tc.initController()
-        tc.initTest()
+        tc.init_controller()
+        tc.init_test()

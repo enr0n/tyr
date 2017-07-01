@@ -6,15 +6,11 @@ import subprocess
 import tarfile
 import socket
 import string
-from termcolor import colored
 from ConfigParser import SafeConfigParser
 
 from tyr_client import resources
 
 parser = SafeConfigParser()
-
-CLR_ERR='red'
-CLR_OK='green'
 
 class controller(object):
 
@@ -22,7 +18,8 @@ class controller(object):
     localpath = os.getcwd()
     client = paramiko.SSHClient()
 
-    def __gen_id(self):
+    def _gen_id(self):
+        """ generate a tag for request """
         return ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(6))
 
     def __init__(self, addr_srvr, port_srvr, user_srvr, path_srvr):
@@ -31,49 +28,40 @@ class controller(object):
         self.path_srvr = path_srvr
         self.port_srvr = int(port_srvr)
 
-        self.test_id = self.__gen_id()
+        self.test_id = self._gen_id()
 
         # Initiate ssh client
         self.client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
         hosts = os.path.join(os.getenv(resources.strings.FS_HOME), resources.strings.FS_KNOWN_HOSTS)
         self.client.load_host_keys(hosts)
 
-
     def compress(self, path, tarname):
-        """
-        Compress the test directory before sending it to server
-
-        """
+        """ compress folder to send to server """
         tar = tarfile.open(tarname + resources.strings.TAR_EXT, resources.strings.TAR_W)
         tar.add(path, tarname)
         tar.close()
         return os.path.join(self.localpath, tarname + resources.strings.TAR_EXT)
 
     def send(self):
-        """
-        Send the test directory to the server
-
-        """
-        #dir_path = os.path.join(self.localpath, dirname)
+        """ send source to server """
         dir_path = self.localpath
         if not os.path.isdir(dir_path):
-            print "\n *" + colored(resources.strings.ERR_DIR_NOT_FOUND, CLR_ERR)
+            resources.print_err(resources.strings.ERR_DIR_NOT_FOUND)
             exit(-3)
 
-        # Compress the test dir_pathector
         tar_path = self.compress(dir_path, os.path.basename(self.localpath))
         tar_dest = os.path.join(self.path_srvr, self.test_id + resources.strings.TAR_EXT)
         err = ""
 
         # Handle sftp
         try:
-            print "\n *" + colored(resources.strings.TEST_SEND, CLR_OK)
+            resources.print_ok(resources.strings.TEST_SEND)
             self.client.connect(self.addr_srvr, username=self.user_srvr)
             sftp = self.client.open_sftp()
             sftp.put(tar_path, tar_dest)
 
         except IOError:
-            print colored(resources.strings.ERR_SFTP, CLR_ERR)
+            resources.print_err(resources.strings.ERR_SFTP)
             os.remove(tar_path)
             self.client.close()
             exit(-3)
@@ -91,12 +79,13 @@ class controller(object):
             exit(-1)
 
     def sendTestConf(self, testconf):
+        """ send test conf file """
         # Format the path for remote server
         testconf_dest = os.path.join(self.path_srvr, os.path.basename(testconf))
 
         # Send the testconf
         try:
-            print colored("Sending testconf.", CLR_OK)
+            resources.print_ok("Sending testconf.")
             self.client.connect(self.addr_srvr, username=self.user_srvr)
             sftp = self.client.open_sftp()
             sftp.put(testconf, testconf_dest)
@@ -109,13 +98,14 @@ class controller(object):
         sftp.close()
         self.client.close()
 
-    def waitForTest(self):
+    def wait_for_test(self):
+        """ wait for the server to finish request """
         # Open socket with the server
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
         # Notify server of test init
         print
-        print " *" + colored("Requesting queue for test: "+ self.test_id, CLR_OK)
+        resources.print_ok("Requesting queue for test: "+ self.test_id)
         try:
             sock.connect((self.addr_srvr, self.port_srvr))
             sock.sendall(self.test_id)
@@ -140,7 +130,8 @@ class client(object):
     def __init__(self):
         self.conf = resources.strings.FS_TYRRC
 
-    def initController(self):
+    def init_controller(self):
+        """ initiate a controller """
         parser.read(self.conf)
         address = parser.get(resources.strings.CONF_LOKI, resources.strings.CONF_ADDR)
         port = parser.get(resources.strings.CONF_LOKI, resources.strings.CONF_PORT)
@@ -148,6 +139,7 @@ class client(object):
         remotepath = parser.get(resources.strings.CONF_LOKI, resources.strings.CONF_RPATH)
         self.controller = controller(address, port, username, remotepath)
 
-    def initTest(self):
+    def init_test(self):
+        """ initiate request with server """
         self.controller.send()
-        self.controller.waitForTest()
+        self.controller.wait_for_test()

@@ -47,7 +47,7 @@ class controller(object):
         dir_path = self.localpath
         if not os.path.isdir(dir_path):
             resources.print_err(resources.strings.ERR_DIR_NOT_FOUND)
-            exit(-3)
+            sys.exit(-3)
 
         tar_path = self.compress(dir_path, os.path.basename(self.localpath))
         tar_dest = os.path.join(self.path_srvr, self.test_id + resources.strings.TAR_EXT)
@@ -78,7 +78,7 @@ class controller(object):
             print err
             exit(-1)
 
-    def sendTestConf(self, testconf):
+    def send_test_conf(self, testconf):
         """ send test conf file """
         # Format the path for remote server
         testconf_dest = os.path.join(self.path_srvr, os.path.basename(testconf))
@@ -116,14 +116,13 @@ class controller(object):
             while True:
                 print sock.recv(256)
                 break
-        except socket.error as serr:
+        except socket.error:
             print resources.strings.ERR_SOCK_CONN_REFUSED
             sock.close()
             sys.exit(-1)
 
         finally:
             sock.close()
-
 
 class client(object):
 
